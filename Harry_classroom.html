@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#e0f2fe">
+  <title>Harry英文教室 App</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; position: fixed; overflow: hidden; background-color: #e0f2fe; }
+    body { display: flex; flex-direction: column; align-items: center; -webkit-tap-highlight-color: transparent; touch-action: pan-y; font-family: sans-serif; }
+    .transform-style-3d { transform-style: preserve-3d; }
+    .backface-hidden { backface-visibility: hidden; transform: translate3d(0, 0, 0); }
+    .rotate-y-180 { transform: rotateY(180deg); }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+    .view-container { width: 100%; height: 100%; display: none; flex-direction: column; align-items: center; padding-top: 2rem; }
+  </style>
+</head>
+<body>
+
+  <div id="top-bar" class="w-full max-w-3xl hidden items-center justify-between mb-4 z-20 px-6 mt-4">
+    <h1 class="text-xl font-bold flex items-center gap-2 text-slate-700">
+      <i data-lucide="book-open" class="text-blue-600"></i> Harry英文教室
+      <button onclick="toggleInfo(true)" class="p-1.5 text-slate-400 bg-white rounded-full shadow-sm"><i data-lucide="info" class="w-5 h-5"></i></button>
+    </h1>
+    <button onclick="fetchCSVData()" class="p-2.5 bg-white border border-slate-300 rounded-xl shadow-sm active:scale-95"><i data-lucide="refresh-cw" class="text-blue-600 w-5 h-5"></i></button>
+  </div>
+
+  <div id="view-home" class="view-container justify-center text-center px-6">
+    <div class="mb-6 p-6 bg-white/80 rounded-full shadow-2xl flex items-center justify-center"><i data-lucide="book-open" class="text-blue-600 w-16 h-16"></i></div>
+    <h1 class="text-4xl font-extrabold text-slate-800 mb-4">Harry英文教室</h1>
+    <p class="text-lg text-slate-600 mb-10">每天 20 個單字，提升英文實力</p>
+    <button onclick="startLearning()" class="px-12 py-4 bg-blue-600 text-white rounded-full font-bold text-xl shadow-xl active:scale-95">開始學習</button>
+  </div>
+
+  <div id="view-loading" class="view-container justify-center text-slate-500">
+    <i id="loading-icon" data-lucide="loader-2" class="w-12 h-12 mb-6 text-blue-500 animate-spin"></i>
+    <p id="loading-text" class="text-lg font-bold">載入單字庫中...</p>
+  </div>
+
+  <div id="view-finished" class="view-container justify-center px-6">
+    <div class="bg-white/90 rounded-3xl shadow-xl p-8 flex flex-col items-center text-center w-full">
+      <i data-lucide="check-circle" class="text-green-500 w-16 h-16 mb-6"></i>
+      <h2 class="text-2xl font-extrabold mb-6">完成練習！</h2>
+      <button onclick="fetchCSVData()" class="px-8 py-3.5 bg-blue-600 text-white rounded-2xl font-bold shadow-lg active:scale-95">重新抽取</button>
+    </div>
+  </div>
+
+  <div id="view-active" class="view-container px-4 pb-12">
+    <div class="w-full max-w-3xl mb-4 flex items-center bg-white/90 px-4 py-3 rounded-2xl shadow-sm shrink-0 gap-4">
+      <div class="text-sm font-bold text-slate-600 min-w-[50px]"><span id="progress-current" class="text-blue-600">0</span> / <span id="progress-total">0</span></div>
+      <div class="flex-1 h-2.5 bg-slate-200/60 rounded-full overflow-hidden relative"><div id="progress-bar" class="absolute top-0 left-0 h-full bg-blue-500 transition-all duration-500" style="width: 0%"></div></div>
+    </div>
+    <div id="flashcard-container" class="no-select perspective-1000 w-full max-w-3xl flex-1 min-h-0 cursor-pointer mb-6" onclick="handleCardClick()">
+      <div id="flashcard-inner" class="relative w-full h-full transition-transform duration-500 transform-style-3d">
+        <div id="card-front" class="absolute inset-0 backface-hidden bg-white rounded-3xl shadow-xl flex flex-col items-center justify-center p-8 border">
+          <h2 id="front-word" class="text-5xl font-extrabold text-slate-800 text-center mb-6"></h2>
+          <button onclick="event.stopPropagation(); speakWord()" class="p-4 text-blue-500 bg-blue-50 rounded-full shadow-sm"><i data-lucide="volume-2" class="w-10 h-10"></i></button>
+        </div>
+        <div id="card-back" class="absolute inset-0 backface-hidden rotate-y-180 bg-white rounded-3xl shadow-xl flex flex-col border">
+          <div class="flex-1 flex flex-col p-4 overflow-hidden min-h-0">
+            <div class="w-full shrink-0 rounded-2xl mb-4 bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center py-4 px-4 gap-3">
+              <h2 id="back-word" class="text-3xl font-extrabold text-slate-800 text-center"></h2>
+              <button onclick="event.stopPropagation(); speakWord(0.5)" class="p-2 text-blue-500 bg-white/60 rounded-full shadow-sm"><i data-lucide="volume-1" class="w-6 h-6"></i></button>
+            </div>
+            <div id="back-details" class="flex-1 overflow-y-auto custom-scrollbar text-left touch-pan-y overscroll-contain"></div>
+          </div>
+          <div class="w-full bg-slate-50 border-t p-3 rounded-b-3xl">
+            <div class="grid grid-cols-3 gap-2 max-w-xl mx-auto">
+              <button onclick="handleRating('review', event)" class="flex flex-col items-center py-2 rounded-xl bg-white border border-red-100 text-red-600 font-bold active:bg-red-50 text-xs"><i data-lucide="rotate-ccw" class="w-4 h-4 mb-1"></i>Review</button>
+              <button onclick="handleRating('hold', event)" class="flex flex-col items-center py-2 rounded-xl bg-white border border-green-100 text-green-600 font-bold active:bg-green-50 text-xs"><i data-lucide="arrow-down-to-line" class="w-4 h-4 mb-1"></i>Final review</button>
+              <button onclick="handleRating('remove', event)" class="flex flex-col items-center py-2 rounded-xl bg-white border border-blue-100 text-blue-600 font-bold active:bg-blue-50 text-xs"><i data-lucide="check" class="w-4 h-4 mb-1"></i>Learnt</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="info-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm items-center justify-center z-[100] p-4" onclick="toggleInfo(false)">
+    <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl relative" onclick="event.stopPropagation()">
+      <h3 class="text-xl font-bold mb-5 flex items-center gap-3"><i data-lucide="info" class="text-blue-600"></i>操作說明</h3>
+      <div class="space-y-4 text-slate-600 text-sm">
+        <p><strong>手機手勢：</strong>翻開解答後，左滑分類為 Review，右滑為 Learnt，下滑為 Final review。</p>
+        <p><strong>朗讀：</strong>點擊喇叭圖示可聽發音。背面提供慢速朗讀。</p>
+      </div>
+      <button onclick="toggleInfo(false)" class="mt-6 w-full py-3.5 bg-blue-600 text-white rounded-xl font-bold active:scale-95">我知道了</button>
+    </div>
+  </div>
+
+  <script>
+    if (window.Capacitor && window.Capacitor.Plugins.SplashScreen) {
+        window.Capacitor.Plugins.SplashScreen.hide();
+    }
+
+    const CSV_URL = 'https://raw.githubusercontent.com/kotoko1012-hk/English-Vocabulary/refs/heads/main/flashcards.csv';
+    const state = { cards: [], queue: [], isFlipped: false, showInfo: false, hasStarted: false, lastWord: '', lastFlipped: null };
+    const $ = id => document.getElementById(id);
+
+    function initApp() {
+        lucide.createIcons();
+        fetchCSVData();
+        initSwipeGestures();
+        window.addEventListener('keydown', handleKeyDown);
+    }
+    
+    window.onload = initApp;
+
+    async function fetchCSVData() {
+        try {
+            setView('view-loading');
+            const res = await fetch(CSV_URL, { cache: "no-store" });
+            if (!res.ok) throw new Error();
+            const text = await res.text();
+            const rows = [];
+            let row = [], cell = '', inQ = false;
+            for (const c of text) {
+                if (c === '"') { if (inQ && cell.endsWith('"')) cell += '"'; else inQ = !inQ; }
+                else if (c === ',' && !inQ) { row.push(cell); cell = ''; }
+                else if (c === '\n' && !inQ) { row.push(cell); rows.push([...row]); row = []; cell = ''; }
+                else if (c !== '\r' || inQ) cell += c;
+            }
+            if (cell || row.length) rows.push([...row, cell]);
+            state.cards = rows.filter(r => r.length >= 2).map(([word, details = ""]) => {
+                const lines = details.split('\n').map(l => l.trim()).filter(Boolean);
+                const exIdx = lines.findIndex(l => l.includes('【例句】'));
+                const firstEx = (exIdx !== -1 && lines[exIdx + 1] && !lines[exIdx + 1].startsWith('【')) ? lines[exIdx + 1].split(/[(（]/)[0].trim() : "";
+                return { word: word.trim(), details, firstEx };
+            }).sort(() => 0.5 - Math.random()).slice(0, 20);
+            state.queue = [...state.cards];
+            state.hasStarted = false; state.isFlipped = false;
+            updateUI();
+        } catch (e) {
+            $('loading-text').innerText = "載入失敗，請檢查網路。";
+            $('loading-icon').style.color = "red";
+        }
+    }
+
+    function setView(id) {
+        ['view-home', 'view-loading', 'view-finished', 'view-active'].forEach(v => {
+            const el = $(v);
+            if (v === id) { el.style.display = 'flex'; el.classList.remove('hidden'); } 
+            else { el.style.display = 'none'; el.classList.add('hidden'); }
+        });
+        const isApp = id === 'view-active' || id === 'view-finished';
+        $('top-bar').style.display = isApp ? 'flex' : 'none';
+        document.body.style.backgroundColor = (id === 'view-home' || id === 'view-finished') ? '#e0f2fe' : '#efe6d5';
+    }
+
+    function updateUI() {
+        if (!state.hasStarted && state.cards.length) return setView('view-home');
+        if (!state.queue.length) return setView('view-finished');
+        setView('view-active');
+        const cur = state.queue[0];
+        $('progress-current').innerText = state.cards.length - state.queue.length + 1;
+        $('progress-total').innerText = state.cards.length;
+        $('progress-bar').style.width = `${((state.cards.length - state.queue.length) / state.cards.length) * 100}%`;
+        $('front-word').innerText = $('back-word').innerText = cur.word;
+        $('back-details').innerHTML = generateDetailsHTML(cur.details);
+        $('flashcard-inner').classList.toggle('rotate-y-180', state.isFlipped);
+        if (state.isFlipped) $('back-details').scrollTop = 0;
+        lucide.createIcons();
+        autoSpeak(cur);
+    }
+
+    function generateDetailsHTML(details) {
+        let inEx = false;
+        return details.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
+            const isH = line.startsWith('【');
+            if (isH) inEx = line.includes('【例句】');
+            const css = isH ? 'font-bold text-indigo-700 mt-4 border-b pb-1 mb-2 w-full inline-block' : 'text-slate-700 leading-relaxed pl-1';
+            const btn = (inEx && !isH) ? `<button onclick="event.stopPropagation(); speak('${line.split(/[(（]/)[0].trim().replace(/'/g, "\\'")}')" class="ml-2 p-1.5 text-blue-500 bg-blue-50 rounded-full"><i data-lucide="volume-2" class="w-4 h-4"></i></button>` : '';
+            return `<div class="flex items-start w-full mb-2"><span class="flex-1 whitespace-pre-wrap ${css}">${line}</span>${btn}</div>`;
+        }).join('');
+    }
+
+    function speak(t, r = 1.0) {
+        if (!t) return;
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(t);
+        u.lang = 'en-US';
+        u.rate = r;
+        u.volume = 1.0;
+        u.onend = function() { console.log('Speech finished'); };
+        window.speechSynthesis.speak(u);
+    }
+
+    function speakWord(r = 1.0) { if (state.queue.length) speak(state.queue[0].word, r); }
+    
+    function autoSpeak(cur) {
+        const t = state.isFlipped ? cur.firstEx : cur.word;
+        if (state.lastWord !== cur.word || state.lastFlipped !== state.isFlipped) {
+            speak(t); state.lastWord = cur.word; state.lastFlipped = state.isFlipped;
+        }
+    }
+
+    function initSwipeGestures() {
+        let sX = 0, sY = 0;
+        const el = $('flashcard-container');
+        el.addEventListener('touchstart', e => { sX = e.touches[0].screenX; sY = e.touches[0].screenY; }, {passive:true});
+        el.addEventListener('touchend', e => {
+            if (!state.isFlipped) return;
+            const dX = e.changedTouches[0].screenX - sX, dY = e.changedTouches[0].screenY - sY;
+            if (Math.abs(dX) > Math.abs(dY) && Math.abs(dX) > 60) handleRating('remove');
+            else if (Math.abs(dX) > Math.abs(dY) && dX < -60) handleRating('review');
+            else if (dY > 100 && Math.abs(dX) < 50 && ($('back-details').scrollTop <= 0)) handleRating('hold');
+        }, {passive:true});
+    }
+
+    function handleRating(r, e) {
+        if (e) e.stopPropagation();
+        const cur = state.queue.shift();
+        if (r === 'review') state.queue.splice(1, 0, cur);
+        else if (r === 'hold') state.queue.push(cur);
+        state.isFlipped = false; updateUI();
+    }
+
+    function handleCardClick() { if (!state.isFlipped && state.queue.length) { state.isFlipped = true; updateUI(); } }
+    function startLearning() { state.hasStarted = true; updateUI(); }
+    function toggleInfo(s) { $('info-modal').style.display = s ? 'flex' : 'none'; }
+    function handleKeyDown(e) {
+        if (e.code === 'Space') { e.preventDefault(); if (!state.isFlipped) handleCardClick(); else speakWord(0.5); }
+        if (state.isFlipped) {
+            if (e.key === 'ArrowLeft') handleRating('review');
+            if (e.key === 'ArrowRight') handleRating('remove');
+            if (e.key === 'ArrowDown') handleRating('hold');
+        }
+    }
+  </script>
+</body>
+</html>
